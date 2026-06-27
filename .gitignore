@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Bun
+.bun/
+
+# Build outputs
+dist/
+build/
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Coverage
+coverage/
+
+# Docker
+postgres_data/
+
+# Misc
+*.local
