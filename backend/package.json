@@ -1,15 +1,27 @@
 {
   "name": "backend",
-  "module": "index.ts",
+  "module": "src/index.ts",
   "type": "module",
   "private": true,
+  "scripts": {
+    "dev": "bun --watch src/index.ts"
+  },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bcryptjs": "^3.0.0",
+    "@types/bun": "latest",
+    "@types/jsonwebtoken": "^9.0.10",
+    "drizzle-kit": "^0.31.10"
   },
   "peerDependencies": {
     "typescript": "^5"
   },
   "dependencies": {
-    "hono": "^4.12.27"
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.27",
+    "jsonwebtoken": "^9.0.3",
+    "postgres": "^3.4.9",
+    "zod": "^4.4.3"
   }
 }
