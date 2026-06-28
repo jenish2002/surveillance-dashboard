@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { db, users } from "../db";
 import { signupSchema } from "./validator";
 import { signToken } from "../utils";
+import { authMiddleware } from "./middleware";
 
 const authRouter = new Hono();
 
@@ -74,6 +75,25 @@ authRouter.post("/login", async (c) => {
       username: user.username,
     },
   });
+});
+
+authRouter.get("/profile", authMiddleware, async (c) => {
+  const userId = c.get("userId");
+
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, userId),
+    columns: {
+      id: true,
+      username: true,
+      createdAt: true,
+    },
+  });
+
+  if (!user) {
+    return c.json({ message: "User not found" }, 404);
+  }
+
+  return c.json(user);
 });
 
 export { authRouter };
