@@ -1,10 +1,10 @@
 import { createMiddleware } from "hono/factory";
 import jwt from "jsonwebtoken";
 
-import type { Variables } from "../types";
+import type { IAppVariables } from "../types";
 
 export const authMiddleware = createMiddleware<{
-  Variables: Variables;
+  Variables: IAppVariables;
 }>(async (c, next) => {
   const authHeader = c.req.header("Authorization");
 

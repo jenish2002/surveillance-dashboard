@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 
 import { db, users } from "../db";
-import { signupSchema } from "./validator";
+import { loginSchema, signupSchema } from "./validator";
 import { signToken } from "../utils";
 import { authMiddleware } from "./middleware";
 
@@ -50,7 +50,13 @@ authRouter.post("/signup", async (c) => {
 authRouter.post("/login", async (c) => {
   const body = await c.req.json();
 
-  const { username, password } = body;
+  const parsedData = loginSchema.safeParse(body);
+
+  if (!parsedData.success) {
+    return c.json({ message: "Invalid data" }, 400);
+  }
+
+  const { username, password } = parsedData.data;
 
   const user = await db.query.users.findFirst({
     where: eq(users.username, username),

@@ -1,5 +1,3 @@
-type Variables = {
+export type IAppVariables = {
   userId: string;
 };
-
-export type { Variables };
