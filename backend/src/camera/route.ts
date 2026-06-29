@@ -5,6 +5,7 @@ import { authMiddleware } from "../auth";
 import { db, cameras } from "../db";
 import { createCameraSchema, updateCameraSchema } from "./validator";
 import type { IAppVariables } from "../types";
+import { worker } from "../worker";
 
 const cameraRouter = new Hono<{
   Variables: IAppVariables;
@@ -98,11 +99,68 @@ cameraRouter.delete("/:id", async (c) => {
     .returning();
 
   if (!camera) {
-    return c.json({ message: "Camera not found" }, 404);
+    return c.json({ message: "Camera not found." }, 404);
   }
 
   return c.json({
     message: "Camera deleted.",
+  });
+});
+
+cameraRouter.post("/:id/start", async (c) => {
+  const id = c.req.param("id");
+  const userId = c.get("userId");
+
+  const camera = await db.query.cameras.findFirst({
+    where: and(eq(cameras.id, id), eq(cameras.userId, userId)),
+  });
+
+  if (!camera) {
+    return c.json({ message: "Camera not found." }, 404);
+  }
+
+  await worker.post("/start", {
+    cameraId: id,
+    rtspUrl: camera.rtspUrl,
+  });
+
+  await db
+    .update(cameras)
+    .set({
+      status: "CONNECTING",
+    })
+    .where(eq(cameras.id, id));
+
+  return c.json({
+    message: "Camera is starting.",
+  });
+});
+
+cameraRouter.post("/:id/stop", async (c) => {
+  const id = c.req.param("id");
+  const userId = c.get("userId");
+
+  const camera = await db.query.cameras.findFirst({
+    where: and(eq(cameras.id, id), eq(cameras.userId, userId)),
+  });
+
+  if (!camera) {
+    return c.json({ message: "Camera not found." }, 404);
+  }
+
+  await worker.post("/stop", {
+    cameraId: id,
+  });
+
+  await db
+    .update(cameras)
+    .set({
+      status: "STOPPED",
+    })
+    .where(eq(cameras.id, id));
+
+  return c.json({
+    message: "Camera is stopped.",
   });
 });
 
