@@ -1,13 +1,18 @@
 import { Hono } from "hono";
+import { flattenError } from "zod";
 
 import { alerts, db } from "../db";
 import type { IAppVariables } from "../types";
 import { createAlertSchema } from "./validator";
 import { broadcast } from "../websocket";
 
+import { internalAuthMiddleware } from "../middlewares";
+
 const alertRouter = new Hono<{
   Variables: IAppVariables;
 }>();
+
+alertRouter.use("*", internalAuthMiddleware);
 
 alertRouter.post("/internal", async (c) => {
   const body = await c.req.json();
@@ -18,7 +23,7 @@ alertRouter.post("/internal", async (c) => {
     return c.json(
       {
         message: "Invalid payload.",
-        errors: parsedData.error.flatten(),
+        errors: flattenError(parsedData.error),
       },
       400,
     );

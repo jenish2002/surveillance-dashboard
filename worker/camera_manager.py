@@ -11,6 +11,7 @@ def start_camera(camera_id: str, rtsp_url: str):
     processor = CameraProcessor(
         camera_id=camera_id,
         rtsp_url=rtsp_url,
+        on_stop=remove_camera,
     )
 
     processor.start()
@@ -31,7 +32,7 @@ def stop_camera(camera_id: str):
 
     processor.stop()
 
-    del running_cameras[camera_id]
+    running_cameras.pop(camera_id, None)
 
     print(f"[STOPPED] Camera: {camera_id}")
 
@@ -40,3 +41,9 @@ def stop_camera(camera_id: str):
 
 def get_running_cameras():
     return list(running_cameras.keys())
+
+
+def remove_camera(camera_id: str):
+    running_cameras.pop(camera_id, None)
+
+    print(f"[REMOVED] Camera {camera_id} removed from manager.")

@@ -3,9 +3,17 @@ import { and, eq } from "drizzle-orm";
 
 import { authMiddleware } from "../auth";
 import { db, cameras } from "../db";
-import { createCameraSchema, updateCameraSchema } from "./validator";
 import type { IAppVariables } from "../types";
 import { worker } from "../worker";
+
+import {
+  createCameraSchema,
+  updateCameraSchema,
+  updateCameraStatusSchema,
+} from "./validator";
+
+import { broadcast } from "../websocket";
+import { internalAuthMiddleware } from "../middlewares";
 
 const cameraRouter = new Hono<{
   Variables: IAppVariables;
@@ -119,20 +127,22 @@ cameraRouter.post("/:id/start", async (c) => {
     return c.json({ message: "Camera not found." }, 404);
   }
 
-  await worker.post("/start", {
+  const response = await worker.post("/start", {
     cameraId: id,
     rtspUrl: camera.rtspUrl,
   });
 
-  await db
-    .update(cameras)
-    .set({
-      status: "CONNECTING",
-    })
-    .where(eq(cameras.id, id));
+  if (!!response.data.success) {
+    await db
+      .update(cameras)
+      .set({
+        status: "CONNECTING",
+      })
+      .where(eq(cameras.id, id));
+  }
 
   return c.json({
-    message: "Camera is starting.",
+    message: response.data.message,
   });
 });
 
@@ -148,20 +158,55 @@ cameraRouter.post("/:id/stop", async (c) => {
     return c.json({ message: "Camera not found." }, 404);
   }
 
-  await worker.post("/stop", {
+  const response = await worker.post("/stop", {
     cameraId: id,
   });
 
-  await db
-    .update(cameras)
-    .set({
-      status: "STOPPED",
-    })
-    .where(eq(cameras.id, id));
+  if (!!response.data.success) {
+    await db
+      .update(cameras)
+      .set({
+        status: "STOPPED",
+      })
+      .where(eq(cameras.id, id));
+  }
 
   return c.json({
-    message: "Camera is stopped.",
+    message: response.data.message,
   });
+});
+
+cameraRouter.post("/internal/status", internalAuthMiddleware, async (c) => {
+  const body = await c.req.json();
+
+  const parsedData = updateCameraStatusSchema.safeParse(body);
+
+  if (!parsedData.success) {
+    return c.json({ message: "Invalid payload." }, 400);
+  }
+
+  const [camera] = await db
+    .update(cameras)
+    .set({
+      status: parsedData.data.status,
+      updatedAt: new Date(),
+    })
+    .where(eq(cameras.id, parsedData.data.cameraId))
+    .returning();
+
+  if (!camera) {
+    return c.json({ message: "Camera not found." }, 404);
+  }
+
+  broadcast({
+    type: "CAMERA_STATUS_UPDATED",
+    payload: {
+      cameraId: camera.id,
+      status: camera.status,
+    },
+  });
+
+  return c.json(camera);
 });
 
 export { cameraRouter };

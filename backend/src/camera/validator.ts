@@ -8,3 +8,8 @@ export const createCameraSchema = z.object({
 });
 
 export const updateCameraSchema = createCameraSchema.partial();
+
+export const updateCameraStatusSchema = z.object({
+  cameraId: z.uuid(),
+  status: z.enum(["CONNECTING", "LIVE", "STOPPED", "ERROR"]),
+});

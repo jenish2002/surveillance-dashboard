@@ -6,6 +6,12 @@ import type { IAppVariables } from "../types";
 export const authMiddleware = createMiddleware<{
   Variables: IAppVariables;
 }>(async (c, next) => {
+  const path = c.req.path;
+
+  if (path.startsWith("/cameras/internal")) {
+    return next();
+  }
+
   const authHeader = c.req.header("Authorization");
 
   if (!authHeader?.startsWith("Bearer ")) {
@@ -30,4 +36,3 @@ export const authMiddleware = createMiddleware<{
     return c.json({ message: "Invalid token" }, 401);
   }
 });
-
