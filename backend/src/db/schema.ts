@@ -5,6 +5,7 @@ import {
   timestamp,
   pgEnum,
   boolean,
+  real,
 } from "drizzle-orm/pg-core";
 
 export const cameraStatusEnum = pgEnum("camera_status", [
@@ -45,4 +46,24 @@ export const cameras = pgTable("cameras", {
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const alerts = pgTable("alerts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+
+  cameraId: uuid("camera_id")
+    .notNull()
+    .references(() => cameras.id, {
+      onDelete: "cascade",
+    }),
+
+  label: varchar("label", {
+    length: 100,
+  }).notNull(),
+
+  confidence: real("confidence").notNull(),
+
+  timestamp: timestamp("timestamp").notNull(),
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });

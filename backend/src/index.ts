@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 
 import { authRouter } from "./auth";
 import { cameraRouter } from "./camera";
+import { alertRouter } from "./alert";
 
 const app = new Hono();
 
@@ -10,6 +11,7 @@ app.use("*", cors());
 
 app.route("/auth", authRouter);
 app.route("/cameras", cameraRouter);
+app.route("/alerts", alertRouter);
 
 app.get("/", (c) => c.text("API Running"));
 

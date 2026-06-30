@@ -28,6 +28,7 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+yolov8n.pt
 
 # Coverage
 coverage/
