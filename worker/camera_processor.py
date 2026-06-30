@@ -9,6 +9,9 @@ from ultralytics import YOLO
 from datetime import datetime, UTC
 from dotenv import load_dotenv
 
+FRAME_SKIP_COUNT = 10
+ALERT_COOLDOWN_SECONDS = 30
+
 load_dotenv()
 
 model = YOLO("yolov8n.pt")
@@ -41,34 +44,41 @@ class CameraProcessor:
     def process_stream(self):
         print(f"[CONNECTING] Camera: {self.camera_id}")
 
-        cap = cv2.VideoCapture(self.rtsp_url)
+        cap = cv2.VideoCapture(
+            self.rtsp_url,
+            cv2.CAP_FFMPEG,
+        )
 
         if not cap.isOpened():
             print(f"[ERROR] Failed to connect camera: {self.camera_id}")
             return
 
-        frame_count = 0
+        try:
+            frame_count = 0
 
-        while self.running:
-            success, frame = cap.read()
+            while self.running:
+                success, frame = cap.read()
 
-            if not success:
-                print(f"[ERROR] Frame read failed for camera: {self.camera_id}")
+                if not success:
+                    print(f"[ERROR] Frame read failed for camera: {self.camera_id}")
 
-                time.sleep(1)
-                continue
+                    time.sleep(1)
+                    continue
 
-            frame_count += 1
+                frame_count += 1
 
-            # Process every 10th frame
-            if frame_count % 10 != 0:
-                continue
+                if frame_count % FRAME_SKIP_COUNT != 0:
+                    continue
 
-            self.detect_person(frame)
+                self.detect_person(frame)
 
-        cap.release()
+        except Exception as error:
+            print(f"[ERROR] Camera processing failed for {self.camera_id}: {error}")
 
-        print(f"[STOPPED] Camera: {self.camera_id}")
+        finally:
+            cap.release()
+
+            print(f"[STOPPED] Camera: {self.camera_id}")
 
     def detect_person(self, frame):
         results = model(frame, verbose=False)
@@ -85,14 +95,16 @@ class CameraProcessor:
 
                 now = datetime.now(UTC)
 
-                if self.last_alert_time and (now - self.last_alert_time).seconds < 30:
+                if (
+                    self.last_alert_time
+                    and (now - self.last_alert_time).total_seconds()
+                    < ALERT_COOLDOWN_SECONDS
+                ):
                     continue
 
                 self.last_alert_time = now
 
-                print(
-                    f"[DETECTED] Camera: {self.camera_id} " f"Person ({confidence:.2f})"
-                )
+                print(f"[DETECTED] Camera: {self.camera_id} Person ({confidence:.2f})")
 
                 self.send_alert(confidence)
 
@@ -109,7 +121,12 @@ class CameraProcessor:
                 timeout=5,
             )
 
-            print(f"[ALERT SENT] Status: {response.status_code}")
+            if response.ok:
+                print(f"[ALERT SENT] Camera: {self.camera_id}")
+            else:
+                print(
+                    f"[ALERT FAILED] Status: {response.status_code} Response: {response.text}"
+                )
 
         except Exception as e:
             print(f"Failed to send alert: {e}")
