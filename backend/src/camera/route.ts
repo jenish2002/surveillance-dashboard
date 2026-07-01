@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { and, eq } from "drizzle-orm";
+import { flattenError } from "zod";
 
 import { authMiddleware } from "../auth";
 import { db, cameras } from "../db";
@@ -9,6 +10,7 @@ import { worker } from "../worker";
 import {
   createCameraSchema,
   updateCameraSchema,
+  updateCameraStatsSchema,
   updateCameraStatusSchema,
 } from "./validator";
 
@@ -207,6 +209,31 @@ cameraRouter.post("/internal/status", internalAuthMiddleware, async (c) => {
   });
 
   return c.json(camera);
+});
+
+cameraRouter.post("/internal/stats", internalAuthMiddleware, async (c) => {
+  const body = await c.req.json();
+
+  const parsedData = updateCameraStatsSchema.safeParse(body);
+
+  if (!parsedData.success) {
+    return c.json(
+      {
+        message: "Invalid payload",
+        errors: flattenError(parsedData.error),
+      },
+      400,
+    );
+  }
+
+  broadcast({
+    type: "CAMERA_STATS_UPDATED",
+    payload: parsedData.data,
+  });
+
+  return c.json({
+    message: "Stats broadcasted successfully",
+  });
 });
 
 export { cameraRouter };

@@ -30,12 +30,15 @@ class CameraProcessor:
     ):
         self.camera_id = camera_id
         self.rtsp_url = rtsp_url
+        self.on_stop = on_stop
 
         self.running = False
         self.thread = None
         self.last_alert_time = None
 
-        self.on_stop = on_stop
+        self.frame_counter = 0
+        self.detection_counter = 0
+        self.last_stats_sent_at = time.time()
 
     def start(self):
         self.running = True
@@ -98,10 +101,16 @@ class CameraProcessor:
 
                 # Reset failure counter after a successful frame
                 failed_attempts = 0
-
                 frame_count += 1
 
-                # Process every Nth frame
+                # Count processed frames for FPS calculation
+                self.frame_counter += 1
+
+                # Send stats every 5 seconds
+                if time.time() - self.last_stats_sent_at >= 5:
+                    self.send_stats()
+
+                # Skip frames to reduce CPU usage
                 if frame_count % FRAME_SKIP_COUNT != 0:
                     continue
 
@@ -146,6 +155,8 @@ class CameraProcessor:
                 self.last_alert_time = now
 
                 print(f"[DETECTED] Camera: {self.camera_id} Person ({confidence:.2f})")
+
+                self.detection_counter += 1
 
                 self.send_alert(confidence)
 
@@ -196,3 +207,47 @@ class CameraProcessor:
 
         except Exception as error:
             print(f"[STATUS ERROR] {error}")
+
+    def send_stats(self):
+        try:
+            elapsed_seconds = time.time() - self.last_stats_sent_at
+
+            if elapsed_seconds == 0:
+                return
+
+            fps = round(
+                self.frame_counter / elapsed_seconds,
+                2,
+            )
+
+            detections_per_minute = round(
+                self.detection_counter * (60 / elapsed_seconds),
+                2,
+            )
+
+            response = requests.post(
+                f"{API_URL}/cameras/internal/stats",
+                headers={
+                    "X-Internal-Secret": INTERNAL_API_SECRET,
+                },
+                json={
+                    "cameraId": self.camera_id,
+                    "fps": fps,
+                    "detectionsPerMinute": detections_per_minute,
+                },
+                timeout=5,
+            )
+
+            if response.ok:
+                print(f"[STATS SENT] FPS={fps} DPM={detections_per_minute}")
+            else:
+                print(f"[STATS ERROR] {response.text}")
+
+            # Reset counters
+            self.frame_counter = 0
+            self.detection_counter = 0
+
+            self.last_stats_sent_at = time.time()
+
+        except Exception as error:
+            print(f"[STATS ERROR] {error}")

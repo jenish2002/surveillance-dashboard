@@ -13,3 +13,9 @@ export const updateCameraStatusSchema = z.object({
   cameraId: z.uuid(),
   status: z.enum(["CONNECTING", "LIVE", "STOPPED", "ERROR"]),
 });
+
+export const updateCameraStatsSchema = z.object({
+  cameraId: z.uuid(),
+  fps: z.number().nonnegative(),
+  detectionsPerMinute: z.number().nonnegative(),
+});
