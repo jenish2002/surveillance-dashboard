@@ -16,6 +16,7 @@ import {
 
 import { broadcast } from "../websocket";
 import { internalAuthMiddleware } from "../middlewares";
+import { startStream, stopStream } from "../mediamtx";
 
 const cameraRouter = new Hono<{
   Variables: IAppVariables;
@@ -129,23 +130,35 @@ cameraRouter.post("/:id/start", async (c) => {
     return c.json({ message: "Camera not found." }, 404);
   }
 
-  const response = await worker.post("/start", {
-    cameraId: id,
-    rtspUrl: camera.rtspUrl,
-  });
-
-  if (!!response.data.success) {
-    await db
-      .update(cameras)
-      .set({
-        status: "CONNECTING",
-      })
-      .where(eq(cameras.id, id));
+  if (camera.status !== "LIVE" && camera.status !== "CONNECTING") {
+    await startStream(id, camera.rtspUrl);
   }
 
-  return c.json({
-    message: response.data.message,
-  });
+  try {
+    const streamUrl = `${process.env.MEDIAMTX_RTSP_URL}/${id}`;
+
+    const response = await worker.post("/start", {
+      cameraId: id,
+      rtspUrl: streamUrl,
+    });
+
+    if (!!response.data.success) {
+      await db
+        .update(cameras)
+        .set({
+          status: "CONNECTING",
+        })
+        .where(eq(cameras.id, id));
+    }
+
+    return c.json({
+      message: response.data.message,
+    });
+  } catch (error) {
+    await stopStream(id);
+
+    throw error;
+  }
 });
 
 cameraRouter.post("/:id/stop", async (c) => {
@@ -165,6 +178,8 @@ cameraRouter.post("/:id/stop", async (c) => {
   });
 
   if (!!response.data.success) {
+    await stopStream(id);
+
     await db
       .update(cameras)
       .set({
@@ -187,13 +202,19 @@ cameraRouter.post("/internal/status", internalAuthMiddleware, async (c) => {
     return c.json({ message: "Invalid payload." }, 400);
   }
 
+  const { cameraId, status } = parsedData.data;
+
+  if (status === "ERROR") {
+    await stopStream(cameraId);
+  }
+
   const [camera] = await db
     .update(cameras)
     .set({
-      status: parsedData.data.status,
+      status,
       updatedAt: new Date(),
     })
-    .where(eq(cameras.id, parsedData.data.cameraId))
+    .where(eq(cameras.id, cameraId))
     .returning();
 
   if (!camera) {

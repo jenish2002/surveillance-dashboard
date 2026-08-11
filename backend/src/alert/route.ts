@@ -29,13 +29,15 @@ alertRouter.post("/internal", async (c) => {
     );
   }
 
+  const { cameraId, confidence, label, timestamp } = parsedData.data;
+
   const [alert] = await db
     .insert(alerts)
     .values({
-      cameraId: parsedData.data.cameraId,
-      label: parsedData.data.label,
-      confidence: parsedData.data.confidence,
-      timestamp: new Date(parsedData.data.timestamp),
+      cameraId,
+      label,
+      confidence,
+      timestamp: new Date(timestamp),
     })
     .returning();
 

@@ -92,7 +92,9 @@ class CameraProcessor:
                     # Stop camera if too many consecutive failures occur
                     if failed_attempts >= MAX_CONSECUTIVE_FAILURES:
                         print(f"[ERROR] Camera disconnected: " f"{self.camera_id}")
+
                         self.running = False
+                        self.update_status("ERROR")
 
                         break
 
@@ -119,13 +121,12 @@ class CameraProcessor:
         except Exception as error:
             self.update_status("ERROR")
 
-            print(f"[ERROR] Camera processing failed " f"for {self.camera_id}: {error}")
+            print(f"[ERROR] Camera processing failed for {self.camera_id}: {error}")
 
         finally:
             cap.release()
-            self.update_status("STOPPED")
 
-            print(f"[STOPPED] Camera: {self.camera_id}")
+            print(f"[CLEANUP] Camera processor: {self.camera_id}")
 
             if self.on_stop:
                 self.on_stop(self.camera_id)

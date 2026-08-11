@@ -1,0 +1,29 @@
+logLevel: info
+
+api: yes
+apiAddress: :9997
+
+rtsp: yes
+
+webrtc: yes
+webrtcAddress: :8889
+
+webrtcLocalUDPAddress: :8189
+
+webrtcAdditionalHosts:
+  - localhost
+
+authInternalUsers:
+  - user: ${MEDIAMTX_API_USERNAME}
+    pass: ${MEDIAMTX_API_PASSWORD}
+    permissions:
+      - action: api
+      - action: publish
+      - action: read
+
+  - user: any
+    permissions:
+      - action: read
+
+paths:
+  all:
